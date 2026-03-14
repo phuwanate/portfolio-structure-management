@@ -34,7 +34,7 @@ A web application for visualizing and managing investment portfolio structure.
 ### 2 Manage Ports
 
 <!-- Add Manage screenshot here -->
-![alt text](assets/img/image-4.png)
+![alt text](assets/img/image-2.png)
 ![alt text](assets/img/image-7.png)
 
 ### 3 Asset Tracking and Payoff Your Profit
