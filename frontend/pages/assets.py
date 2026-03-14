@@ -31,7 +31,7 @@ else:
                 "port_id": port["id"], "comment": comment
             })
             if resp.status_code == 200:
-                st.success(f"บันทึก {selected_name} สำเร็จ")
+                st.session_state["show_toast"] = "SAVED"
                 st.rerun()
             else:
                 st.error(resp.json().get("detail", "Error"))
@@ -72,6 +72,7 @@ else:
             selected = st.selectbox("เลือกรายการที่จะลบ", list(options.keys()))
             if st.button("ลบ"):
                 requests.delete(f"{API}/asset-snapshots/{options[selected]}")
+                st.session_state["show_toast"] = "DELETED"
                 st.rerun()
 
 # === Payoff CF Profit ===
@@ -89,7 +90,7 @@ with st.form("add_payoff"):
         if payoff_amt > 0:
             resp = requests.post(f"{API}/payoffs", json={"amount": payoff_amt, "comment": payoff_comment})
             if resp.status_code == 200:
-                st.success(f"Payoff {payoff_amt:,.2f} ฿ สำเร็จ")
+                st.session_state["show_toast"] = "SAVED"
                 st.rerun()
             else:
                 st.error(resp.json().get("detail", "Error"))
@@ -121,4 +122,5 @@ if payoffs:
         sel = st.selectbox("เลือกรายการที่จะลบ", list(payoff_options.keys()), key="del_payoff")
         if st.button("ลบ", key="btn_del_payoff"):
             requests.delete(f"{API}/payoffs/{payoff_options[sel]}")
+            st.session_state["show_toast"] = "DELETED"
             st.rerun()
