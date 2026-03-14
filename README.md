@@ -37,14 +37,14 @@ A web application for visualizing and managing investment portfolio structure.
 ![alt text](assets/img/image-4.png)
 ![alt text](assets/img/image-7.png)
 
-### 3 Asset Tracking
+### 3 Configure each Port
+![alt text](assets/img/image-1.png)
+
+### 4 Asset Tracking
 
 <!-- Add Manage screenshot here -->
 ![alt text](assets/img/image-3.png)
 ![alt text](assets/img/image-8.png)
-
-### 4 Configure Ports
-![alt text](assets/img/image-1.png)
 
 ## Getting Started
 
