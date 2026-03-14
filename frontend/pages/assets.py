@@ -26,7 +26,7 @@ else:
 
     with st.form("add_snapshot"):
         comment = st.text_input("Comment (ไม่บังคับ)", placeholder="เช่น เพิ่มทุน, ตลาดขึ้น...")
-        if st.form_submit_button("📌 Add Data"):
+        if st.form_submit_button("✦ Add Data"):
             resp = requests.post(f"{API}/asset-snapshots", json={
                 "port_id": port["id"], "comment": comment
             })
@@ -48,6 +48,8 @@ else:
     else:
         table_data = []
         for s in snapshots:
+            if s["port_name"] == "Total Asset":
+                continue
             table_data.append({
                 "Date": s["date"][:19].replace("T", " "),
                 "Port": s["port_name"],
@@ -61,10 +63,11 @@ else:
         st.dataframe(df, use_container_width=True, hide_index=True)
 
         # Delete snapshot
-        with st.expander("🗑️ ลบรายการ"):
+        with st.expander("🗑 ลบรายการ"):
             options = {
                 f"{s['date'][:19].replace('T', ' ')} — {s['port_name']} — {s['total']:,.2f} ฿": s["id"]
                 for s in snapshots
+                if s["port_name"] != "Total Asset"
             }
             selected = st.selectbox("เลือกรายการที่จะลบ", list(options.keys()))
             if st.button("ลบ"):
@@ -82,7 +85,7 @@ st.metric("Cash Flow (Profit) คงเหลือ", f"{cf_profit:,.2f} ฿")
 with st.form("add_payoff"):
     payoff_amt = st.number_input("จำนวนที่จะ Payoff (฿)", min_value=0.0, value=0.0, step=100.0)
     payoff_comment = st.text_input("Comment (ไม่บังคับ)", placeholder="เช่น ถอนกำไร, จ่ายค่าใช้จ่าย...", key="payoff_comment")
-    if st.form_submit_button("💸 Payoff"):
+    if st.form_submit_button("↗ Payoff"):
         if payoff_amt > 0:
             resp = requests.post(f"{API}/payoffs", json={"amount": payoff_amt, "comment": payoff_comment})
             if resp.status_code == 200:
@@ -110,7 +113,7 @@ if payoffs:
     st.dataframe(payoff_df, use_container_width=True, hide_index=True)
     st.metric("รวม Payoff ทั้งหมด", f"{total_payoff:,.2f} ฿")
 
-    with st.expander("🗑️ ลบรายการ Payoff"):
+    with st.expander("🗑 ลบรายการ Payoff"):
         payoff_options = {
             f"{p['date'][:19].replace('T', ' ')} — {p['amount']:,.2f} ฿": p["id"]
             for p in payoffs
