@@ -55,9 +55,10 @@ def test_snapshots_multiple_ports(client):
     client.post("/asset-snapshots", json={"port_id": p1["id"], "comment": "a"})
     client.post("/asset-snapshots", json={"port_id": p2["id"], "comment": "b"})
     snapshots = client.get("/asset-snapshots").json()
-    assert len(snapshots) == 2
+    # 2 port snapshots + 2 auto Total Asset snapshots
+    assert len(snapshots) == 4
     names = {s["port_name"] for s in snapshots}
-    assert names == {"PortA", "PortB"}
+    assert names == {"PortA", "PortB", "Total Asset"}
 
 
 def test_snapshot_reflects_current_values(client):

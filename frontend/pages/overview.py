@@ -3,7 +3,6 @@ import streamlit.components.v1 as components
 import requests
 import json
 import pandas as pd
-import altair as alt
 
 API = "http://localhost:8000"
 
@@ -233,7 +232,7 @@ else:
 
     # ===== Line Chart =====
     st.divider()
-    st.subheader("📈 Asset Growth Trend (per Port)")
+    st.subheader("📈 Asset Growth Trend")
     try:
         snap_resp = requests.get(f"{API}/asset-snapshots")
         snap_resp.raise_for_status()
@@ -246,20 +245,207 @@ else:
     else:
         chart_df = pd.DataFrame(snapshots)
         chart_df["date"] = pd.to_datetime(chart_df["date"], format="ISO8601")
-        chart_df["day"] = chart_df["date"].dt.strftime("%Y-%m-%d")
-        chart_df["date_str"] = chart_df["date"].dt.strftime("%Y-%m-%d %H:%M")
+        chart_df["day"] = chart_df["date"].dt.strftime("%m-%d")
         chart_df = chart_df.sort_values("date")
         chart_df = chart_df.drop_duplicates(subset=["day", "port_name"], keep="last")
 
-        zoom = alt.selection_interval(bind="scales", encodings=["x"])
-        base = alt.Chart(chart_df).encode(
-            x=alt.X("day:T", title="Date", axis=alt.Axis(format="%m-%d", labelAngle=-45)),
-            y=alt.Y("total:Q", title="Total (฿)"),
-            color=alt.Color("port_name:N", title="Port"),
-            tooltip=["port_name:N", "date_str:N", "invested:Q", "profit:Q", "total:Q"],
-        )
-        chart = (base.mark_line() + base.mark_circle(size=50)).add_params(zoom).properties(height=300)
-        st.altair_chart(chart, use_container_width=True)
+        port_names = sorted([n for n in chart_df["port_name"].unique() if n != "Total Asset"])
+        all_names = port_names + (["Total Asset"] if "Total Asset" in chart_df["port_name"].values else [])
+        labels = sorted(chart_df["day"].unique())
+
+        line_colors = ["#36A2EB","#4BC0C0","#9966FF","#FF9F40","#FFCE56",
+                       "#7BC8A4","#C9CBCF","#E7E9ED","#F7464A","#66BB6A"]
+        total_color = "#FF6384"
+
+        # Build full datasets as JSON arrays
+        all_datasets = []
+        for i, name in enumerate(all_names):
+            sub = chart_df[chart_df["port_name"] == name].set_index("day")
+            values = [float(sub.loc[d, "total"]) if d in sub.index else None for d in labels]
+            is_total = name == "Total Asset"
+            color = total_color if is_total else line_colors[i % len(line_colors)]
+            all_datasets.append({
+                "label": name,
+                "fullData": values,
+                "borderColor": color,
+                "backgroundColor": color,
+                "borderDash": [6, 4] if is_total else [],
+                "borderWidth": 2.5 if is_total else 2,
+                "pointRadius": 3,
+                "pointHitRadius": 10,
+                "pointHoverRadius": 8,
+                "pointHoverBorderWidth": 2,
+                "pointHoverBorderColor": "#fff",
+                "tension": 0.3,
+                "fill": False,
+            })
+
+        labels_json = json.dumps(labels)
+        datasets_json = json.dumps(all_datasets)
+
+        line_html = f'''
+        <style>html,body{{margin:0;padding:0;overflow:hidden;height:100%;}}
+        .ctrl-btn{{background:#1a1a2e;border:1px solid #2196F3;padding:5px 10px;border-radius:6px;cursor:pointer;
+            display:flex;align-items:center;gap:3px;transition:all 0.2s ease;}}
+        .ctrl-btn:hover{{background:#2196F3;transform:scale(1.12);box-shadow:0 0 12px rgba(33,150,243,0.5);}}
+        .ctrl-btn:hover svg{{stroke:#fff;}}
+        .ctrl-btn:hover span{{color:#fff;}}
+        .ctrl-btn:active{{transform:scale(0.95);}}</style>
+        <div style="background:#0e1117;padding:15px;border-radius:10px;position:relative;">
+            <div style="position:relative;width:100%;height:340px;">
+                <canvas id="lineChart"></canvas>
+            </div>
+            <div style="display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-top:6px;">
+                <button id="panLeft" class="ctrl-btn" title="Pan Left">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64B5F6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+                <button id="zoomIn" class="ctrl-btn" title="Zoom In">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64B5F6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg></button>
+                <button id="zoomOut" class="ctrl-btn" title="Zoom Out">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64B5F6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg></button>
+                <button id="panRight" class="ctrl-btn" title="Pan Right">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64B5F6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+                <button id="resetZoom" class="ctrl-btn" title="Reset Zoom">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64B5F6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                    <span style="color:#64B5F6;font-size:11px;">Reset</span></button>
+            </div>
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+        <script>
+        const allLabels = {labels_json};
+        const allDatasets = {datasets_json};
+        const totalLen = allLabels.length;
+        let viewStart = 0;
+        let viewEnd = totalLen;
+        const MIN_WINDOW = 3;
+
+        function getSlicedData() {{
+            return {{
+                labels: allLabels.slice(viewStart, viewEnd),
+                datasets: allDatasets.map(ds => ({{
+                    ...ds,
+                    data: ds.fullData.slice(viewStart, viewEnd)
+                }}))
+            }};
+        }}
+
+        const ctx = document.getElementById('lineChart').getContext('2d');
+        const chart = new Chart(ctx, {{
+            type: 'line',
+            data: getSlicedData(),
+            options: {{
+                responsive: true,
+                maintainAspectRatio: false,
+                resizeDelay: 0,
+                animation: {{ duration: 200 }},
+                interaction: {{ mode: 'nearest', intersect: true }},
+                plugins: {{
+                    legend: {{
+                        labels: {{ color: '#ccc', usePointStyle: true, pointStyle: 'circle', padding: 16 }}
+                    }},
+                    tooltip: {{
+                        backgroundColor: 'rgba(13,27,62,0.95)',
+                        titleColor: '#64B5F6',
+                        bodyColor: '#ccc',
+                        borderColor: '#2196F3',
+                        borderWidth: 1,
+                        padding: 10,
+                        cornerRadius: 8,
+                        callbacks: {{
+                            label: function(c) {{
+                                return c.dataset.label + ': ' + c.parsed.y.toLocaleString(undefined, {{minimumFractionDigits:2, maximumFractionDigits:2}}) + ' ฿';
+                            }}
+                        }}
+                    }}
+                }},
+                scales: {{
+                    x: {{
+                        ticks: {{ color: '#8899aa', maxRotation: 45 }},
+                        grid: {{ color: 'rgba(255,255,255,0.05)' }}
+                    }},
+                    y: {{
+                        ticks: {{
+                            color: '#8899aa',
+                            callback: function(v) {{ return v.toLocaleString() + ' ฿'; }}
+                        }},
+                        grid: {{ color: 'rgba(255,255,255,0.08)' }}
+                    }}
+                }},
+                onHover: function(evt, elements) {{
+                    evt.chart.canvas.style.cursor = elements.length ? 'pointer' : 'default';
+                }}
+            }},
+            plugins: [{{
+                id: 'glowEffect',
+                beforeDatasetsDraw(chart) {{
+                    const ctx = chart.ctx;
+                    chart.data.datasets.forEach((ds, i) => {{
+                        const m = chart.getDatasetMeta(i);
+                        if (!m.hidden && chart._active && chart._active.length && chart._active[0].datasetIndex === i) {{
+                            ctx.save();
+                            ctx.shadowColor = ds.borderColor;
+                            ctx.shadowBlur = 16;
+                            ctx.strokeStyle = ds.borderColor;
+                            ctx.lineWidth = (ds.borderWidth || 2) + 2;
+                            ctx.beginPath();
+                            const pts = m.data;
+                            for (let j = 0; j < pts.length; j++) {{
+                                if (pts[j].skip) continue;
+                                if (j === 0) ctx.moveTo(pts[j].x, pts[j].y);
+                                else ctx.lineTo(pts[j].x, pts[j].y);
+                            }}
+                            ctx.stroke();
+                            ctx.restore();
+                        }}
+                    }});
+                }}
+            }}]
+        }});
+
+        function updateChart() {{
+            const d = getSlicedData();
+            chart.data.labels = d.labels;
+            d.datasets.forEach((ds, i) => {{ chart.data.datasets[i].data = ds.data; }});
+            chart.update();
+        }}
+
+        document.getElementById('zoomIn').addEventListener('click', () => {{
+            const window = viewEnd - viewStart;
+            if (window <= MIN_WINDOW) return;
+            const shrink = Math.max(1, Math.floor(window * 0.15));
+            viewStart = Math.min(viewStart + shrink, viewEnd - MIN_WINDOW);
+            viewEnd = Math.max(viewEnd - shrink, viewStart + MIN_WINDOW);
+            updateChart();
+        }});
+        document.getElementById('zoomOut').addEventListener('click', () => {{
+            const expand = Math.max(1, Math.floor((viewEnd - viewStart) * 0.2));
+            viewStart = Math.max(0, viewStart - expand);
+            viewEnd = Math.min(totalLen, viewEnd + expand);
+            updateChart();
+        }});
+        document.getElementById('panLeft').addEventListener('click', () => {{
+            const step = Math.max(1, Math.floor((viewEnd - viewStart) * 0.2));
+            if (viewStart <= 0) return;
+            const shift = Math.min(step, viewStart);
+            viewStart -= shift;
+            viewEnd -= shift;
+            updateChart();
+        }});
+        document.getElementById('panRight').addEventListener('click', () => {{
+            const step = Math.max(1, Math.floor((viewEnd - viewStart) * 0.2));
+            if (viewEnd >= totalLen) return;
+            const shift = Math.min(step, totalLen - viewEnd);
+            viewStart += shift;
+            viewEnd += shift;
+            updateChart();
+        }});
+        document.getElementById('resetZoom').addEventListener('click', () => {{
+            viewStart = 0;
+            viewEnd = totalLen;
+            updateChart();
+        }});
+        </script>'''
+        components.html(line_html, height=420, scrolling=False)
+   
 
     # ===== Port Details Table =====
     st.divider()

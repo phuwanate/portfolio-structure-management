@@ -32,7 +32,7 @@ else:
                 st.write(f"Profit: {port['profit']:,.2f} ฿")
 
                 # แก้ Invested
-                with st.popover("💼 แก้ Invested"):
+                with st.popover("📊 แก้ Invested"):
                     new_invested = st.number_input(
                         "Invested ใหม่ (฿)", min_value=0.0, value=port["invested"], key=f"invested_{port['id']}"
                     )
@@ -44,7 +44,7 @@ else:
                             st.error(resp.json().get("detail", "Error"))
 
                 # แก้ Profit
-                with st.popover("✏️ แก้ Profit"):
+                with st.popover("📝 แก้ Profit"):
                     new_profit = st.number_input(
                         "Profit ใหม่ (฿)", min_value=0.0, value=port["profit"], key=f"profit_{port['id']}"
                     )
@@ -53,7 +53,7 @@ else:
                         st.rerun()
 
                 # โอน Profit → Cash Flow (Profit)
-                with st.popover("💸 โอนไป Profit"):
+                with st.popover("↗️ โอนไป Profit"):
                     transfer_amt = st.number_input(
                         "จำนวน (฿)", min_value=0.0, max_value=max(port["profit"], 0.01),
                         value=0.0, key=f"transfer_{port['id']}"
@@ -69,7 +69,7 @@ else:
                                 st.error(resp.json().get("detail", "Error"))
 
                 # แก้ไขลูกศร
-                with st.popover("🔗 ลูกศร"):
+                with st.popover("⛓️ ลูกศร"):
                     aw = st.checkbox("⬜ Cash → Port (ลงทุน)", value=port["arrow_white"], key=f"aw_{port['id']}")
                     ag = st.checkbox("🟩 Profit → Port (เติมทุน)", value=port["arrow_green"], key=f"ag_{port['id']}")
                     ao = st.checkbox("🟧 Port → Profit (โอนกำไร)", value=port["arrow_orange"], key=f"ao_{port['id']}")
@@ -79,7 +79,7 @@ else:
                         })
                         st.rerun()
 
-                if st.button("🗑️ ลบ", key=f"del_{port['id']}"):
+                if st.button("🗑 ลบ", key=f"del_{port['id']}"):
                     requests.delete(f"{API}/ports/{port['id']}")
                     st.rerun()
 

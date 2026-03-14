@@ -143,16 +143,33 @@ def create_asset_snapshot(body: AssetSnapshotCreate, db: Session = Depends(get_d
     port = db.query(Port).filter(Port.id == body.port_id).first()
     if not port:
         raise HTTPException(404, "Port not found")
+    now = datetime.now()
     snapshot = AssetSnapshot(
         port_id=port.id,
         port_name=port.name,
-        date=datetime.now(),
+        date=now,
         invested=port.invested,
         profit=port.profit,
         total=port.invested + port.profit,
         comment=body.comment,
     )
     db.add(snapshot)
+    db.flush()
+
+    # Auto-create Total Asset snapshot
+    all_ports = db.query(Port).all()
+    total_invested = sum(p.invested for p in all_ports)
+    total_profit = sum(p.profit for p in all_ports)
+    total_snapshot = AssetSnapshot(
+        port_id=0,
+        port_name="Total Asset",
+        date=now,
+        invested=total_invested,
+        profit=total_profit,
+        total=total_invested + total_profit,
+        comment="auto",
+    )
+    db.add(total_snapshot)
     db.commit()
     db.refresh(snapshot)
     return snapshot
@@ -163,11 +180,79 @@ def get_asset_snapshots(db: Session = Depends(get_db)):
     return db.query(AssetSnapshot).order_by(AssetSnapshot.date.asc()).all()
 
 
+# --- Seed sample snapshots for testing chart ---
+@app.post("/asset-snapshots/seed-sample")
+def seed_sample_snapshots(db: Session = Depends(get_db)):
+    from datetime import datetime, timedelta
+    import random
+
+    ports = db.query(Port).all()
+    if not ports:
+        raise HTTPException(400, "No ports found. Create ports first.")
+
+    # ลบ sample เก่า (ถ้ามี)
+    db.query(AssetSnapshot).filter(AssetSnapshot.comment == "[sample]").delete()
+    db.commit()
+
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    records = []
+    for days_ago in range(30, -1, -1):
+        date = today - timedelta(days=days_ago)
+        day_total_invested = 0
+        day_total_profit = 0
+        for port in ports:
+            invested = port.invested * 0.6 * (1.02 ** (30 - days_ago)) * random.uniform(0.97, 1.03)
+            profit = port.profit * 0.3 * (1.01 ** (30 - days_ago)) * random.uniform(0.95, 1.05)
+            invested = round(invested, 2)
+            profit = round(profit, 2)
+            day_total_invested += invested
+            day_total_profit += profit
+            snap = AssetSnapshot(
+                port_id=port.id,
+                port_name=port.name,
+                date=date,
+                invested=invested,
+                profit=profit,
+                total=round(invested + profit, 2),
+                comment="[sample]",
+            )
+            records.append(snap)
+        # Total Asset row for this day
+        total_snap = AssetSnapshot(
+            port_id=0,
+            port_name="Total Asset",
+            date=date,
+            invested=round(day_total_invested, 2),
+            profit=round(day_total_profit, 2),
+            total=round(day_total_invested + day_total_profit, 2),
+            comment="[sample]",
+        )
+        records.append(total_snap)
+
+    db.add_all(records)
+    db.commit()
+    return {"message": f"Seeded {len(records)} sample snapshots for {len(ports)} ports"}
+
+
+@app.delete("/asset-snapshots/seed-sample")
+def delete_sample_snapshots(db: Session = Depends(get_db)):
+    count = db.query(AssetSnapshot).filter(AssetSnapshot.comment == "[sample]").delete()
+    db.commit()
+    return {"message": f"Deleted {count} sample snapshots"}
+
+
 @app.delete("/asset-snapshots/{snapshot_id}")
 def delete_asset_snapshot(snapshot_id: int, db: Session = Depends(get_db)):
     snapshot = db.query(AssetSnapshot).filter(AssetSnapshot.id == snapshot_id).first()
     if not snapshot:
         raise HTTPException(404, "Snapshot not found")
+    # Also delete the auto-generated Total Asset snapshot with the same date
+    if snapshot.port_name != "Total Asset":
+        db.query(AssetSnapshot).filter(
+            AssetSnapshot.port_name == "Total Asset",
+            AssetSnapshot.date == snapshot.date,
+            AssetSnapshot.comment == "auto",
+        ).delete()
     db.delete(snapshot)
     db.commit()
     return {"message": "Snapshot deleted"}
@@ -203,42 +288,3 @@ def delete_payoff(payoff_id: int, db: Session = Depends(get_db)):
     db.delete(record)
     db.commit()
     return {"message": "Payoff record deleted"}
-
-
-# --- Seed sample snapshots for testing chart ---
-@app.post("/asset-snapshots/seed-sample")
-def seed_sample_snapshots(db: Session = Depends(get_db)):
-    from datetime import datetime, timedelta
-    import random
-
-    ports = db.query(Port).all()
-    if not ports:
-        raise HTTPException(400, "No ports found. Create ports first.")
-
-    # ลบ sample เก่า (ถ้ามี)
-    db.query(AssetSnapshot).filter(AssetSnapshot.comment == "[sample]").delete()
-    db.commit()
-
-    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    records = []
-    for port in ports:
-        invested = port.invested * 0.6
-        profit = port.profit * 0.3
-        for days_ago in range(30, -1, -1):
-            date = today - timedelta(days=days_ago)
-            invested *= random.uniform(1.0, 1.03)
-            profit *= random.uniform(0.98, 1.05)
-            snap = AssetSnapshot(
-                port_id=port.id,
-                port_name=port.name,
-                date=date,
-                invested=round(invested, 2),
-                profit=round(profit, 2),
-                total=round(invested + profit, 2),
-                comment="[sample]",
-            )
-            records.append(snap)
-
-    db.add_all(records)
-    db.commit()
-    return {"message": f"Seeded {len(records)} sample snapshots for {len(ports)} ports"}
