@@ -43,6 +43,9 @@ A web application for visualizing and managing investment portfolio structure.
 ![alt text](assets/img/image-3.png)
 ![alt text](assets/img/image-8.png)
 
+### Configure Ports
+![alt text](assets/img/image-1.png)
+
 ## Getting Started
 
 ### Prerequisites
