@@ -4,6 +4,7 @@ st.set_page_config(page_title="Portfolio Structure", layout="wide")
 
 overview = st.Page("pages/overview.py", title="Overview", icon="📊", default=True)
 manage = st.Page("pages/manage.py", title="Manage Ports", icon="⚙️")
+assets = st.Page("pages/assets.py", title="Asset Tracking", icon="🏦")
 
-pg = st.navigation([overview, manage])
+pg = st.navigation([overview, manage, assets])
 pg.run()

@@ -28,14 +28,20 @@ A web application for visualizing and managing investment portfolio structure.
 ### Overview Dashboard
 
 <!-- Add Overview screenshot heree -->
-![alt text](image-4.png)
-![alt text](image-5.png)
+![alt text](image-1.png)
+![alt text](image-2.png)
 
 ### Manage Ports
 
 <!-- Add Manage screenshot here -->
 ![alt text](image-6.png)
 ![alt text](image-7.png)
+
+### Asset Tracking
+
+<!-- Add Manage screenshot here -->
+![alt text](image-3.png)
+![alt text](image-8.png)
 
 ## Getting Started
 
@@ -101,6 +107,18 @@ bash scripts/backup.sh
 
 # Restore
 bash scripts/restore.sh backups/backup_20260314_120000.sql
+```
+
+## Unit Test
+
+รัน unit test บนเครื่อง local (ไม่ต้องใช้ Docker หรือ PostgreSQL)
+
+```bash
+# ติดตั้ง dependencies
+pip install -r requirements.txt
+
+# รัน test
+python -m pytest backend/tests/ -v
 ```
 
 ## Environment Variables

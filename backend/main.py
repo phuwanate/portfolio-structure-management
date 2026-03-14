@@ -2,8 +2,8 @@ from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.database import engine, get_db, Base
-from backend.models import Port, CashFlow
-from backend.schemas import PortCreate, PortResponse, PortUpdateArrows, CashFlowResponse
+from backend.models import Port, CashFlow, AssetSnapshot, PayoffRecord
+from backend.schemas import PortCreate, PortResponse, PortUpdateArrows, CashFlowResponse, AssetSnapshotCreate, AssetSnapshotResponse, PayoffCreate, PayoffResponse
 
 Base.metadata.create_all(bind=engine)
 
@@ -134,3 +134,111 @@ def update_port_arrows(port_id: int, arrows: PortUpdateArrows, db: Session = Dep
     db.commit()
     db.refresh(port)
     return port
+
+
+# --- Asset Snapshots ---
+@app.post("/asset-snapshots", response_model=AssetSnapshotResponse)
+def create_asset_snapshot(body: AssetSnapshotCreate, db: Session = Depends(get_db)):
+    from datetime import datetime
+    port = db.query(Port).filter(Port.id == body.port_id).first()
+    if not port:
+        raise HTTPException(404, "Port not found")
+    snapshot = AssetSnapshot(
+        port_id=port.id,
+        port_name=port.name,
+        date=datetime.now(),
+        invested=port.invested,
+        profit=port.profit,
+        total=port.invested + port.profit,
+        comment=body.comment,
+    )
+    db.add(snapshot)
+    db.commit()
+    db.refresh(snapshot)
+    return snapshot
+
+
+@app.get("/asset-snapshots", response_model=list[AssetSnapshotResponse])
+def get_asset_snapshots(db: Session = Depends(get_db)):
+    return db.query(AssetSnapshot).order_by(AssetSnapshot.date.asc()).all()
+
+
+@app.delete("/asset-snapshots/{snapshot_id}")
+def delete_asset_snapshot(snapshot_id: int, db: Session = Depends(get_db)):
+    snapshot = db.query(AssetSnapshot).filter(AssetSnapshot.id == snapshot_id).first()
+    if not snapshot:
+        raise HTTPException(404, "Snapshot not found")
+    db.delete(snapshot)
+    db.commit()
+    return {"message": "Snapshot deleted"}
+
+
+# --- Payoff Records ---
+@app.post("/payoffs", response_model=PayoffResponse)
+def create_payoff(body: PayoffCreate, db: Session = Depends(get_db)):
+    from datetime import datetime
+    if body.amount <= 0:
+        raise HTTPException(400, "Amount must be positive")
+    profit_cf = db.query(CashFlow).filter(CashFlow.type == "profit").first()
+    if profit_cf.amount < body.amount:
+        raise HTTPException(400, f"Not enough CF Profit (available: {profit_cf.amount})")
+    profit_cf.amount -= body.amount
+    record = PayoffRecord(date=datetime.now(), amount=body.amount, comment=body.comment)
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+    return record
+
+
+@app.get("/payoffs", response_model=list[PayoffResponse])
+def get_payoffs(db: Session = Depends(get_db)):
+    return db.query(PayoffRecord).order_by(PayoffRecord.date.asc()).all()
+
+
+@app.delete("/payoffs/{payoff_id}")
+def delete_payoff(payoff_id: int, db: Session = Depends(get_db)):
+    record = db.query(PayoffRecord).filter(PayoffRecord.id == payoff_id).first()
+    if not record:
+        raise HTTPException(404, "Payoff record not found")
+    db.delete(record)
+    db.commit()
+    return {"message": "Payoff record deleted"}
+
+
+# --- Seed sample snapshots for testing chart ---
+@app.post("/asset-snapshots/seed-sample")
+def seed_sample_snapshots(db: Session = Depends(get_db)):
+    from datetime import datetime, timedelta
+    import random
+
+    ports = db.query(Port).all()
+    if not ports:
+        raise HTTPException(400, "No ports found. Create ports first.")
+
+    # ลบ sample เก่า (ถ้ามี)
+    db.query(AssetSnapshot).filter(AssetSnapshot.comment == "[sample]").delete()
+    db.commit()
+
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    records = []
+    for port in ports:
+        invested = port.invested * 0.6
+        profit = port.profit * 0.3
+        for days_ago in range(30, -1, -1):
+            date = today - timedelta(days=days_ago)
+            invested *= random.uniform(1.0, 1.03)
+            profit *= random.uniform(0.98, 1.05)
+            snap = AssetSnapshot(
+                port_id=port.id,
+                port_name=port.name,
+                date=date,
+                invested=round(invested, 2),
+                profit=round(profit, 2),
+                total=round(invested + profit, 2),
+                comment="[sample]",
+            )
+            records.append(snap)
+
+    db.add_all(records)
+    db.commit()
+    return {"message": f"Seeded {len(records)} sample snapshots for {len(ports)} ports"}
