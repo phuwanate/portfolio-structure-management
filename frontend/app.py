@@ -62,11 +62,6 @@ div[role="dialog"] {
     animation: dialogFadeIn 0.35s ease-out;
 }
 
-/* Modal overlay — dark instead of white to prevent flash */
-div[data-testid="stModal"] > div:first-child {
-    background-color: rgba(0, 0, 0, 0.6) !important;
-}
-
 /* Prevent white flash on Streamlit rerun */
 .stApp, .main, section[data-testid="stMain"],
 div[data-testid="stAppViewContainer"],
