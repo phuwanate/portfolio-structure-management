@@ -27,7 +27,7 @@ A web application for visualizing and managing investment portfolio structure.
 
 ### Overview Dashboard
 
-<!-- Add Overview screenshot here -->
+<!-- Add Overview screenshot heree -->
 ![alt text](image-4.png)
 ![alt text](image-5.png)
 
