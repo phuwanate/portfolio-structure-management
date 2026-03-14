@@ -91,29 +91,45 @@ div[data-testid="stStatusWidget"] {
 """, unsafe_allow_html=True)
 
 # --- Global "SAVED" toast ---
+import streamlit.components.v1 as components
+
 if st.session_state.get("show_toast"):
     toast_msg = st.session_state.pop("show_toast")
-    import streamlit.components.v1 as components
     components.html(f"""
     <script>
     (function() {{
         var doc = window.parent.document;
         var old = doc.getElementById('kiro-toast');
         if (old) old.remove();
+
+        // Remove old cleanup script if any
+        var oldScript = doc.getElementById('kiro-toast-cleanup');
+        if (oldScript) oldScript.remove();
+
         var d = doc.createElement('div');
         d.id = 'kiro-toast';
         d.textContent = '{toast_msg}';
         d.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.8);z-index:999999;pointer-events:none;font-size:2.5rem;font-weight:700;color:rgba(200,200,200,0.7);letter-spacing:6px;opacity:0;transition:opacity 0.4s ease,transform 0.4s ease;';
         doc.body.appendChild(d);
-        requestAnimationFrame(function() {{
-            d.style.opacity = '1';
-            d.style.transform = 'translate(-50%,-50%) scale(1)';
-            setTimeout(function() {{
-                d.style.opacity = '0';
-                d.style.transform = 'translate(-50%,-50%) scale(1.15)';
-                setTimeout(function() {{ d.remove(); }}, 500);
-            }}, 1400);
-        }});
+
+        // Inject a script into parent so the timer survives page switches
+        var s = doc.createElement('script');
+        s.id = 'kiro-toast-cleanup';
+        s.textContent = `
+            requestAnimationFrame(function() {{
+                var t = document.getElementById('kiro-toast');
+                if (t) {{
+                    t.style.opacity = '1';
+                    t.style.transform = 'translate(-50%,-50%) scale(1)';
+                    setTimeout(function() {{
+                        t.style.opacity = '0';
+                        t.style.transform = 'translate(-50%,-50%) scale(1.15)';
+                        setTimeout(function() {{ if(t.parentNode) t.remove(); }}, 500);
+                    }}, 1400);
+                }}
+            }});
+        `;
+        doc.body.appendChild(s);
     }})();
     </script>
     """, height=0)

@@ -7,6 +7,7 @@ class Port(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
+    port_type = Column(String, default="")
     invested = Column(Float, default=0.0)
     profit = Column(Float, default=0.0)
     arrow_white = Column(Boolean, default=False)   # Cash → Port (เงินลงทุนตั้งต้น)
