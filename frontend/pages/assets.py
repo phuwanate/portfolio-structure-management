@@ -4,6 +4,12 @@ import pandas as pd
 
 API = "http://localhost:8000"
 
+# Reset form values if flagged
+if st.session_state.pop("_reset_snapshot", False):
+    st.session_state["_snapshot_ver"] = st.session_state.get("_snapshot_ver", 0) + 1
+if st.session_state.pop("_reset_payoff", False):
+    st.session_state["_payoff_ver"] = st.session_state.get("_payoff_ver", 0) + 1
+
 st.title("🏦 Asset Tracking")
 
 ports = requests.get(f"{API}/ports").json()
@@ -24,7 +30,8 @@ else:
     c2.metric("Profit", f"{port['profit']:,.2f} ฿")
     c3.metric("Total", f"{port['invested'] + port['profit']:,.2f} ฿")
 
-    with st.form("add_snapshot"):
+    sv = st.session_state.get("_snapshot_ver", 0)
+    with st.form(f"add_snapshot_{sv}"):
         comment = st.text_input("Comment (ไม่บังคับ)", placeholder="เช่น เพิ่มทุน, ตลาดขึ้น...")
         if st.form_submit_button("✦ Add Data"):
             resp = requests.post(f"{API}/asset-snapshots", json={
@@ -32,6 +39,7 @@ else:
             })
             if resp.status_code == 200:
                 st.session_state["show_toast"] = "SAVED"
+                st.session_state["_reset_snapshot"] = True
                 st.rerun()
             else:
                 st.error(resp.json().get("detail", "Error"))
@@ -83,14 +91,16 @@ cashflow = {cf["type"]: cf["amount"] for cf in requests.get(f"{API}/cashflow").j
 cf_profit = cashflow.get("profit", 0)
 st.metric("Cash Flow (Profit) คงเหลือ", f"{cf_profit:,.2f} ฿")
 
-with st.form("add_payoff"):
+pv = st.session_state.get("_payoff_ver", 0)
+with st.form(f"add_payoff_{pv}"):
     payoff_amt = st.number_input("จำนวนที่จะ Payoff (฿)", min_value=0.0, value=0.0, step=100.0)
-    payoff_comment = st.text_input("Comment (ไม่บังคับ)", placeholder="เช่น ถอนกำไร, จ่ายค่าใช้จ่าย...", key="payoff_comment")
+    payoff_comment = st.text_input("Comment (ไม่บังคับ)", placeholder="เช่น ถอนกำไร, จ่ายค่าใช้จ่าย...")
     if st.form_submit_button("↗ Payoff"):
         if payoff_amt > 0:
             resp = requests.post(f"{API}/payoffs", json={"amount": payoff_amt, "comment": payoff_comment})
             if resp.status_code == 200:
                 st.session_state["show_toast"] = "SAVED"
+                st.session_state["_reset_payoff"] = True
                 st.rerun()
             else:
                 st.error(resp.json().get("detail", "Error"))

@@ -29,10 +29,16 @@ else:
             with cols[i % 4]:
                 with st.container(border=True):
                     st.markdown(f"### {port['name']}")
+                    st.markdown(f"Type: {port.get('port_type', '-') or '-'}")
                     st.markdown(f"Invested: {port['invested']:,.2f} ฿")
                     st.markdown(f"Profit: {port['profit']:,.2f} ฿")
 
                     with st.popover("⚙️ Settings", use_container_width=True):
+                        st.markdown("🏷️ ประเภท Port")
+                        new_type = st.text_input(
+                            "Type", value=port.get("port_type", ""),
+                            key=f"type_{port['id']}"
+                        )
                         st.markdown("📊 Invested")
                         new_inv = st.number_input(
                             "Invested ใหม่ (฿)", min_value=0.0, value=port["invested"],
@@ -48,6 +54,7 @@ else:
                         ag = st.checkbox("🟩 Profit → Port", value=port["arrow_green"], key=f"ag_{port['id']}")
                         ao = st.checkbox("🟧 Port → Profit", value=port["arrow_orange"], key=f"ao_{port['id']}")
                         if st.button("💾 บันทึก", key=f"save_settings_{port['id']}"):
+                            requests.put(f"{API}/ports/{port['id']}/type", params={"port_type": new_type})
                             requests.put(f"{API}/ports/{port['id']}/invested", params={"amount": new_inv})
                             requests.put(f"{API}/ports/{port['id']}/profit", params={"amount": new_prf})
                             requests.put(f"{API}/ports/{port['id']}/arrows", json={
@@ -84,6 +91,7 @@ st.divider()
 st.subheader("➕ เพิ่ม Port ใหม่")
 with st.form("add_port"):
     name = st.text_input("ชื่อ Port")
+    port_type = st.text_input("ประเภท Port", placeholder="เช่น DCA, Grid, Futures, Spot...")
     c1, c2 = st.columns(2)
     invested = c1.number_input("Invested (฿)", min_value=0.0, value=0.0)
     profit = c2.number_input("Profit (฿)", min_value=0.0, value=0.0)
@@ -95,7 +103,7 @@ with st.form("add_port"):
     if st.form_submit_button("เพิ่ม Port"):
         if name:
             resp = requests.post(f"{API}/ports", json={
-                "name": name, "invested": invested, "profit": profit,
+                "name": name, "port_type": port_type, "invested": invested, "profit": profit,
                 "arrow_white": aw, "arrow_green": ag, "arrow_orange": ao
             })
             if resp.status_code == 200:

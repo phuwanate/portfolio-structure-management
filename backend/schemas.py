@@ -4,6 +4,7 @@ from pydantic import BaseModel
 
 class PortCreate(BaseModel):
     name: str
+    port_type: str = ""
     invested: float = 0.0
     profit: float = 0.0
     arrow_white: bool = False
@@ -14,6 +15,7 @@ class PortCreate(BaseModel):
 class PortResponse(BaseModel):
     id: int
     name: str
+    port_type: str
     invested: float
     profit: float
     arrow_white: bool

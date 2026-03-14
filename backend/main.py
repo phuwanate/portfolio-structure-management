@@ -96,6 +96,17 @@ def update_port_profit(port_id: int, amount: float, db: Session = Depends(get_db
     db.refresh(port)
     return port
 
+@app.put("/ports/{port_id}/type")
+def update_port_type(port_id: int, port_type: str, db: Session = Depends(get_db)):
+    port = db.query(Port).filter(Port.id == port_id).first()
+    if not port:
+        raise HTTPException(404, "Port not found")
+    port.port_type = port_type
+    db.commit()
+    db.refresh(port)
+    return port
+
+
 
 @app.post("/ports/{port_id}/transfer-to-profit")
 def transfer_profit_to_cashflow(port_id: int, amount: float, db: Session = Depends(get_db)):
