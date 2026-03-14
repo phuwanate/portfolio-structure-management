@@ -56,6 +56,18 @@ else:
         svg = f'<svg width="{svg_w}" height="{svg_h}" viewBox="0 0 {svg_w} {svg_h}" '
         svg += 'xmlns="http://www.w3.org/2000/svg" style="max-width:100%;height:auto;">'
         svg += '''<defs>
+          <filter id="glow-blue" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="4" result="blur"/>
+            <feFlood flood-color="#2196F3" flood-opacity="0.4"/>
+            <feComposite in2="blur" operator="in"/>
+            <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <filter id="glow-green" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="4" result="blur"/>
+            <feFlood flood-color="#4BC0C0" flood-opacity="0.4"/>
+            <feComposite in2="blur" operator="in"/>
+            <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
           <marker id="ah-white" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
             <polygon points="0 0, 10 3.5, 0 7" fill="white"/></marker>
           <marker id="ah-green" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
@@ -65,13 +77,13 @@ else:
         </defs>'''
         svg += f'''
         <rect x="{start_x}" y="{profit_y}" width="{total_ports_w}" height="36" rx="6"
-              fill="#0d1b3e" stroke="#2196F3" stroke-width="2"/>
+              fill="#0d1b3e" stroke="#2196F3" stroke-width="2" filter="url(#glow-blue)"/>
         <text x="{start_x + total_ports_w/2}" y="{profit_y + 23}" text-anchor="middle"
               fill="#64B5F6" font-size="13" font-weight="bold">Cash Flow (Profit)</text>
         <rect x="{start_x}" y="{cash_y}" width="{total_ports_w}" height="36" rx="6"
-              fill="#1a1a2e" stroke="#444" stroke-width="1.5"/>
+              fill="#0a2e1a" stroke="#4BC0C0" stroke-width="2" filter="url(#glow-green)"/>
         <text x="{start_x + total_ports_w/2}" y="{cash_y + 23}" text-anchor="middle"
-              fill="white" font-size="13" font-weight="bold">Cash</text>'''
+              fill="#4BC0C0" font-size="13" font-weight="bold">Cash</text>'''
 
         for i, port in enumerate(ports):
             px = start_x + i * (box_w + gap)
