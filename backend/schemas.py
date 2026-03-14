@@ -1,3 +1,4 @@
+from datetime import datetime
 from pydantic import BaseModel
 
 
@@ -31,5 +32,37 @@ class PortUpdateArrows(BaseModel):
 class CashFlowResponse(BaseModel):
     type: str
     amount: float
+
+    model_config = {"from_attributes": True}
+
+
+class AssetSnapshotCreate(BaseModel):
+    port_id: int
+    comment: str = ""
+
+
+class AssetSnapshotResponse(BaseModel):
+    id: int
+    port_id: int
+    port_name: str
+    date: datetime
+    invested: float
+    profit: float
+    total: float
+    comment: str
+
+    model_config = {"from_attributes": True}
+
+
+class PayoffCreate(BaseModel):
+    amount: float
+    comment: str = ""
+
+
+class PayoffResponse(BaseModel):
+    id: int
+    date: datetime
+    amount: float
+    comment: str
 
     model_config = {"from_attributes": True}
