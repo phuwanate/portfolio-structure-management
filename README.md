@@ -119,6 +119,12 @@ pip install -r requirements.txt
 
 # รัน test
 python -m pytest backend/tests/ -v
+
+# Load Test Data Set
+curl -X POST http://localhost:8000/asset-snapshots/seed-sample
+
+# Delete Test Data Set
+curl -X DELETE http://localhost:8000/asset-snapshots/seed-sample
 ```
 
 ## Environment Variables
