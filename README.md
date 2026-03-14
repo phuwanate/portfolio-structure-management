@@ -28,13 +28,13 @@ A web application for visualizing and managing investment portfolio structure.
 ### Overview Dashboard
 
 <!-- Add Overview screenshot heree -->
-![alt text](image-1.png)
+![alt text](image.png)
 ![alt text](image-2.png)
 
 ### Manage Ports
 
 <!-- Add Manage screenshot here -->
-![alt text](image-6.png)
+![alt text](image-4.png)
 ![alt text](image-7.png)
 
 ### Asset Tracking
