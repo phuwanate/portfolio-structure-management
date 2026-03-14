@@ -37,10 +37,7 @@ A web application for visualizing and managing investment portfolio structure.
 ![alt text](assets/img/image-4.png)
 ![alt text](assets/img/image-7.png)
 
-### 3 Configure each Port
-![alt text](assets/img/image-1.png)
-
-### 4 Asset Tracking and Payoff Your Profit
+### 3 Asset Tracking and Payoff Your Profit
 
 <!-- Add Manage screenshot here -->
 ![alt text](assets/img/image-3.png)
