@@ -1,0 +1,136 @@
+from fastapi import FastAPI, Depends, HTTPException
+from sqlalchemy.orm import Session
+
+from backend.database import engine, get_db, Base
+from backend.models import Port, CashFlow
+from backend.schemas import PortCreate, PortResponse, PortUpdateArrows, CashFlowResponse
+
+Base.metadata.create_all(bind=engine)
+
+app = FastAPI(title="Portfolio Structure API")
+
+
+def _init_cashflow(db: Session):
+    """สร้าง Cash และ Profit ถ้ายังไม่มี"""
+    for t in ["cash", "profit"]:
+        if not db.query(CashFlow).filter(CashFlow.type == t).first():
+            db.add(CashFlow(type=t, amount=0.0))
+    db.commit()
+
+
+@app.on_event("startup")
+def startup():
+    db = next(get_db())
+    _init_cashflow(db)
+    db.close()
+
+
+# --- Cash & Profit ---
+@app.get("/cashflow", response_model=list[CashFlowResponse])
+def get_cashflow(db: Session = Depends(get_db)):
+    return db.query(CashFlow).all()
+
+
+@app.put("/cashflow/{cf_type}")
+def update_cashflow(cf_type: str, amount: float, db: Session = Depends(get_db)):
+    cf = db.query(CashFlow).filter(CashFlow.type == cf_type).first()
+    if not cf:
+        raise HTTPException(404, "CashFlow type not found")
+    cf.amount = amount
+    db.commit()
+    return {"type": cf.type, "amount": cf.amount}
+
+
+# --- Ports ---
+@app.get("/ports", response_model=list[PortResponse])
+def get_ports(db: Session = Depends(get_db)):
+    return db.query(Port).all()
+
+
+@app.post("/ports", response_model=PortResponse)
+def create_port(port: PortCreate, db: Session = Depends(get_db)):
+    # ห้ามชื่อซ้ำ
+    existing = db.query(Port).filter(Port.name == port.name).first()
+    if existing:
+        raise HTTPException(400, f"Port '{port.name}' already exists")
+    # หัก Invested จาก Cash
+    if port.invested > 0:
+        cash = db.query(CashFlow).filter(CashFlow.type == "cash").first()
+        if cash.amount < port.invested:
+            raise HTTPException(400, f"Not enough Cash (available: {cash.amount})")
+        cash.amount -= port.invested
+    db_port = Port(**port.model_dump())
+    db.add(db_port)
+    db.commit()
+    db.refresh(db_port)
+    return db_port
+
+
+@app.put("/ports/{port_id}/invested", response_model=PortResponse)
+def update_port_invested(port_id: int, amount: float, db: Session = Depends(get_db)):
+    port = db.query(Port).filter(Port.id == port_id).first()
+    if not port:
+        raise HTTPException(404, "Port not found")
+    diff = amount - port.invested
+    if diff > 0:
+        cash = db.query(CashFlow).filter(CashFlow.type == "cash").first()
+        if cash.amount < diff:
+            raise HTTPException(400, f"Not enough Cash (available: {cash.amount})")
+        cash.amount -= diff
+    elif diff < 0:
+        cash = db.query(CashFlow).filter(CashFlow.type == "cash").first()
+        cash.amount += abs(diff)
+    port.invested = amount
+    db.commit()
+    db.refresh(port)
+    return port
+
+
+@app.put("/ports/{port_id}/profit", response_model=PortResponse)
+def update_port_profit(port_id: int, amount: float, db: Session = Depends(get_db)):
+    port = db.query(Port).filter(Port.id == port_id).first()
+    if not port:
+        raise HTTPException(404, "Port not found")
+    port.profit = amount
+    db.commit()
+    db.refresh(port)
+    return port
+
+
+@app.post("/ports/{port_id}/transfer-to-profit")
+def transfer_profit_to_cashflow(port_id: int, amount: float, db: Session = Depends(get_db)):
+    port = db.query(Port).filter(Port.id == port_id).first()
+    if not port:
+        raise HTTPException(404, "Port not found")
+    if amount <= 0:
+        raise HTTPException(400, "Amount must be positive")
+    if amount > port.profit:
+        raise HTTPException(400, f"Not enough profit (available: {port.profit})")
+    port.profit -= amount
+    profit_cf = db.query(CashFlow).filter(CashFlow.type == "profit").first()
+    profit_cf.amount += amount
+    db.commit()
+    return {"message": f"Transferred {amount} from '{port.name}' to Cash Flow (Profit)", "port_profit": port.profit, "cashflow_profit": profit_cf.amount}
+
+
+@app.delete("/ports/{port_id}")
+def delete_port(port_id: int, db: Session = Depends(get_db)):
+    port = db.query(Port).filter(Port.id == port_id).first()
+    if not port:
+        raise HTTPException(404, "Port not found")
+    db.delete(port)
+    db.commit()
+    return {"message": f"Port '{port.name}' deleted"}
+
+
+@app.put("/ports/{port_id}/arrows", response_model=PortResponse)
+def update_port_arrows(port_id: int, arrows: PortUpdateArrows, db: Session = Depends(get_db)):
+    port = db.query(Port).filter(Port.id == port_id).first()
+    if not port:
+        raise HTTPException(404, "Port not found")
+    port.arrow_white = arrows.arrow_white
+    port.arrow_green = arrows.arrow_green
+    port.arrow_orange = arrows.arrow_orange
+    db.commit()
+    db.refresh(port)
+    return port
