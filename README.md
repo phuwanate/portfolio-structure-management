@@ -23,27 +23,27 @@ A web application for visualizing and managing investment portfolio structure.
 - Database: PostgreSQL 16
 - Container: Docker + Docker Compose
 
-## Screenshots
+## All Features Screenshot
 
-### Overview Dashboard
+### 1 Overview Dashboard
 
 <!-- Add Overview screenshot heree -->
 ![alt text](assets/img/image.png)
 ![alt text](assets/img/image-5.png)
 
-### Manage Ports
+### 2 Manage Ports
 
 <!-- Add Manage screenshot here -->
 ![alt text](assets/img/image-4.png)
 ![alt text](assets/img/image-7.png)
 
-### Asset Tracking
+### 3 Asset Tracking
 
 <!-- Add Manage screenshot here -->
 ![alt text](assets/img/image-3.png)
 ![alt text](assets/img/image-8.png)
 
-### Configure Ports
+### 4 Configure Ports
 ![alt text](assets/img/image-1.png)
 
 ## Getting Started
